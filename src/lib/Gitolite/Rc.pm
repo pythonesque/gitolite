@@ -385,6 +385,8 @@ BEGIN {
     macros                  SYNTACTIC_SUGAR .
     refex-expr              SYNTACTIC_SUGAR .
 
+    get-local-objects       POST_GIT        .
+
     renice                  PRE_GIT         .
 
     CpuTime                 INPUT           ::
@@ -432,6 +434,9 @@ BEGIN {
 
     repo-specific-hooks     POST_COMPILE    .
     repo-specific-hooks     POST_CREATE     .
+
+    get-local-objects       PRE_GIT         .
+
 ";
 }
 
@@ -592,6 +597,9 @@ __DATA__
             # 'repo-specific-hooks',
 
         # performance, logging, monitoring...
+
+            # get objects from local repo before push starts, to reduce network traffic
+            # 'get-local-objects',
 
             # be nice
             # 'renice 10',

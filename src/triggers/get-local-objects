@@ -1,0 +1,54 @@
+#!/bin/sh
+exec >&2
+set -x
+
+# get objects from local repo
+
+# POC for now; if it gets widely used we can convert it to a native trigger in
+# perl to make it faster.
+
+# WARNING: IF YOU PICK A SOURCE REPO THAT CONTAINS MANY COMMITS YOUR OWN REPO
+# DOES NOT HAVE, THIS IS COUNTER-PRODUCTIVE.
+
+# BRIEF INSTRUCTIONS:
+#   1.  uncomment 'get-local-objects' line in rc
+#   2.  add 'option local-object-source = source-repo-name' to repo
+
+# NOTES: regardless what repo name you supply, if 'gl-forked-from' exists in
+# the target repo, the content of that file -- which is a single repo name --
+# is used as the source repo.  (The 'fork' command creates that file).
+
+trig=$1
+repo=$2
+user=$3
+rw=$4
+
+# nothing to do for reads
+[ "$rw" = "R" ] && exit 0
+
+# find the source repo; exit if none defined
+source=$(gitolite git-config $repo gitolite-options.local-object-source)
+[ -z "$source" ] && exit 0
+# but if it *is* defined, it can be overriden
+fork_source=$GL_REPO_BASE/$repo.git/gl-forked-from
+[ -f $fork_source ] && source=`cat $fork_source`
+
+# ----------------------------------------------------------------------
+
+cd $GL_REPO_BASE/$repo.git
+
+if [ "$trig" = "PRE_GIT" ]
+then
+
+    gitolite access -q $source $user R || exit 0
+    # it's not an error if he can't read it; we just skip the optimisation
+
+    # fetch all valid refs into a temporary namespace...
+    time git fetch -q --no-tags $GL_REPO_BASE/$source.git +refs/*:refs/local-objects-$GL_TID/*
+
+elif [ "$trig" = "POST_GIT" ]
+then
+    # delete all the temp refs created
+    git for-each-ref --format 'delete %(refname)' refs/local-objects-$GL_TID | git update-ref --stdin
+    exit 0
+fi
